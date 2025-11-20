@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>K.T.M Bakery - Professional System</title>
-   <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#8B4513">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <style>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#8B4513">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial; }
         body { background: #FFF8F0; padding: 0; }
         
@@ -60,53 +60,53 @@
         }
         .main-system { display: none; }
         
-     .navbar { 
-    background: #8B4513; 
-    color: white; 
-    padding: 15px 25px; 
-    display: flex; 
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1000;
-}
+        .navbar { 
+            background: #8B4513; 
+            color: white; 
+            padding: 15px 25px; 
+            display: flex; 
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
 
-.nav-tabs {
-    display: flex;
-    background: #F5F5F5;
-    border-bottom: 2px solid #8B4513;
-    position: fixed;
-    top: 80px;
-    left: 0;
-    right: 0;
-    z-index: 999;
-}
+        .nav-tabs {
+            display: flex;
+            background: #F5F5F5;
+            border-bottom: 2px solid #8B4513;
+            position: fixed;
+            top: 80px;
+            left: 0;
+            right: 0;
+            z-index: 999;
+        }
 
-.nav-tab {
-    padding: 15px 25px;
-    border: none;
-    background: none;
-    cursor: pointer;
-    font-weight: bold;
-    color: #666;
-}
+        .nav-tab {
+            padding: 15px 25px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-weight: bold;
+            color: #666;
+        }
 
-.nav-tab.active {
-    background: white;
-    color: #8B4513;
-    border-bottom: 3px solid #8B4513;
-}
+        .nav-tab.active {
+            background: white;
+            color: #8B4513;
+            border-bottom: 3px solid #8B4513;
+        }
         
-      .container {
-    padding: 20px;
-    max-width: 1200px;
-    margin: 0 auto;
-    margin-top: 140px;
-}
+        .container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            margin-top: 140px;
+        }
         
         .tab-content {
             display: none;
@@ -236,28 +236,27 @@
         }
     </style>
 
+    <!-- Firebase Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js"></script>
 
-  <!-- Firebase Scripts -->
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js"></script>
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDwoKxoRlqqitysxMwkgpP4DVbWUCgal90",
+            authDomain: "ktm-bakery-7431f.firebaseapp.com",
+            databaseURL: "https://ktm-bakery-7431f-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "ktm-bakery-7431f",
+            storageBucket: "ktm-bakery-7431f.firebasestorage.app",
+            messagingSenderId: "916489170642",
+            appId: "1:916489170642:web:057a0b6dc1dbb99e35870b",
+            measurementId: "G-KFNP9LSRGC"
+        };
 
-<script>
-  // Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyDwoKxoRlqqitysxMwkgpP4DVbWUCgal90",
-    authDomain: "ktm-bakery-7431f.firebaseapp.com",
-    databaseURL: "https://ktm-bakery-7431f-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "ktm-bakery-7431f",
-    storageBucket: "ktm-bakery-7431f.firebasestorage.app",
-    messagingSenderId: "916489170642",
-    appId: "1:916489170642:web:057a0b6dc1dbb99e35870b",
-    measurementId: "G-KFNP9LSRGC"
-  };
-
-  // Initialize Firebase
-  const app = firebase.initializeApp(firebaseConfig);
-  const database = firebase.database();
-</script>
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+    </script>
 </head>
 <body>
     <!-- Login Screen -->
@@ -422,60 +421,19 @@
     </div>
 
     <script>
-       // ==================== PWA SERVICE WORKER ====================
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
-    navigator.serviceWorker.register('/sw.js')
-    .then(function(registration) {
-      console.log('Service Worker registered successfully');
-    })
-    .catch(function(error) {
-      console.log('Service Worker registration failed: ', error);
-    });
-  });
-}
-      
-      // ==================== CLOUD STORAGE SYSTEM ====================
-        const CLOUD_KEY = 'ktm_bakery_professional_system';
+        // ==================== PWA SERVICE WORKER ====================
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js')
+                .then(function(registration) {
+                    console.log('Service Worker registered successfully');
+                })
+                .catch(function(error) {
+                    console.log('Service Worker registration failed: ', error);
+                });
+            });
+        }
         
-        // Save data to cloud
-        function saveToCloud() {
-            const cloudData = {
-                orders: orders,
-                production: productionData,
-                completedOrders: completedOrders,
-                lastSync: new Date().toISOString(),
-                device: navigator.userAgent
-            };
-            localStorage.setItem(CLOUD_KEY, JSON.stringify(cloudData));
-            simulateDeviceSync();
-        }
-
-        // Load data from cloud
-        function loadFromCloud() {
-            const cloudData = localStorage.getItem(CLOUD_KEY);
-            if (cloudData) {
-                const data = JSON.parse(cloudData);
-                orders = data.orders || [];
-                productionData = data.production || [];
-                completedOrders = data.completedOrders || [];
-                
-                updateActiveOrdersDisplay();
-                loadProductionData();
-                loadReports();
-                loadCompletedOrders();
-            }
-        }
-
-        // Simulate multi-device sync
-        function simulateDeviceSync() {
-            setTimeout(() => {
-                setTimeout(() => {
-                    loadFromCloud();
-                }, 1000);
-            }, 500);
-        }
-
         // ==================== PROFESSIONAL SYSTEM ====================
         const users = [
             { username: "staff1", password: "123", role: "staff", name: "John Waiter" },
@@ -511,7 +469,15 @@ if ('serviceWorker' in navigator) {
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('currentDate').textContent = new Date().toDateString();
-            loadFromCloud();
+            
+            // ✅ FIREBASE REAL-TIME LISTENER
+            database.ref('orders').on('value', (snapshot) => {
+                const firebaseOrders = snapshot.val();
+                if (firebaseOrders) {
+                    orders = Object.values(firebaseOrders);
+                    updateActiveOrdersDisplay();
+                }
+            });
         });
 
         // ==================== ROLE-BASED ACCESS CONTROL ====================
@@ -538,7 +504,6 @@ if ('serviceWorker' in navigator) {
                 `;
             }
             
-            // Show completed orders panel for chef and manager
             if (userRole !== 'staff') {
                 document.getElementById('completedOrdersPanel').style.display = 'block';
             }
@@ -566,9 +531,7 @@ if ('serviceWorker' in navigator) {
                 loadReports();
                 loadCompletedOrders();
                 
-                // 🔔 NOTIFICATION PERMISSION
                 requestNotificationPermission();
-                
                 alert('✅ Login successful! Professional system loaded.');
             } else {
                 alert('Login failed! Use:\nStaff: staff1/123\nChef: chef1/123\nManager: manager/123');
@@ -710,7 +673,16 @@ if ('serviceWorker' in navigator) {
 
             orders.push(order);
             
-            // Create production record
+            // ✅ FIREBASE DATABASE मा SAVE गर्ने
+            database.ref('orders/' + order.id).set(order)
+            .then(() => {
+                console.log('Order saved to Firebase!');
+            })
+            .catch((error) => {
+                console.error('Firebase error:', error);
+                alert('Firebase error: ' + error.message);
+            });
+
             const productionRecord = {
                 orderId: order.id,
                 items: [...currentOrder],
@@ -721,10 +693,7 @@ if ('serviceWorker' in navigator) {
             };
             productionData.push(productionRecord);
 
-            // 🔔 SEND NOTIFICATION TO CHEF
             sendNotificationToChef(order);
-
-            saveToCloud();
 
             currentOrder = [];
             updateOrderSummary();
@@ -738,7 +707,6 @@ if ('serviceWorker' in navigator) {
 
         // ==================== NOTIFICATION SYSTEM ====================
         function playNotificationSound() {
-            // Create beep sound using JavaScript
             const context = new (window.AudioContext || window.webkitAudioContext)();
             const oscillator = context.createOscillator();
             const gainNode = context.createGain();
@@ -757,10 +725,8 @@ if ('serviceWorker' in navigator) {
         }
 
         function sendNotificationToChef(order) {
-            // Play sound notification
             playNotificationSound();
             
-            // Show browser notification
             if ("Notification" in window && Notification.permission === "granted") {
                 new Notification("K.T.M Bakery - New Order", {
                     body: `${order.staff} sent order with ${order.items.length} items - Required: ${order.time}`,
@@ -768,7 +734,6 @@ if ('serviceWorker' in navigator) {
                 });
             }
             
-            // Show PWA push notification
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.ready.then(function(registration) {
                     registration.showNotification('K.T.M Bakery - New Order', {
@@ -787,7 +752,7 @@ if ('serviceWorker' in navigator) {
             }
         }
 
-        // ==================== ORDER ACTIONS (DELETE/MODIFY) ====================
+        // ==================== ORDER ACTIONS ====================
         function cancelOrder(orderId) {
             orderToCancel = orderId;
             document.getElementById('cancelModal').style.display = 'flex';
@@ -814,14 +779,13 @@ if ('serviceWorker' in navigator) {
                 cancelledOrder.cancelledReason = reason;
                 cancelledOrder.cancelledAt = new Date();
                 
-                // Move to completed orders
                 completedOrders.push(cancelledOrder);
                 orders.splice(orderIndex, 1);
                 
-                saveToCloud();
+                // ✅ FIREBASE मा UPDATE गर्ने
+                database.ref('orders/' + orderToCancel).remove();
                 alert('✅ Order cancelled successfully!');
             }
-
             closeCancelModal();
         }
 
@@ -832,11 +796,11 @@ if ('serviceWorker' in navigator) {
                 completedOrder.status = 'completed';
                 completedOrder.completedAt = new Date();
                 
-                // Move to completed orders
                 completedOrders.push(completedOrder);
                 orders.splice(orderIndex, 1);
                 
-                saveToCloud();
+                // ✅ FIREBASE मा UPDATE गर्ने
+                database.ref('orders/' + orderId).remove();
                 alert('✅ Order marked as completed!');
             }
         }
@@ -998,15 +962,13 @@ if ('serviceWorker' in navigator) {
         function updateProduction(recordIndex, itemIndex) {
             const input = document.getElementById(`prod-${recordIndex}-${itemIndex}`);
             productionData[recordIndex].produced[itemIndex].quantity = parseInt(input.value) || 0;
-            saveToCloud();
         }
 
         function completeProduction(recordIndex) {
             productionData[recordIndex].status = 'completed';
-            saveToCloud();
             loadProductionData();
             loadReports();
-            alert('Production marked as completed! Synced to all devices.');
+            alert('Production marked as completed!');
         }
 
         function loadReports() {
@@ -1053,7 +1015,7 @@ if ('serviceWorker' in navigator) {
                     </div>
                 </div>
 
-                <h4 style="color: #8B4513; margin-bottom: 15px;">Item-wise Production (All Devices)</h4>
+                <h4 style="color: #8B4513; margin-bottom: 15px;">Item-wise Production</h4>
                 <div style="background: #F9F9F9; padding: 15px; border-radius: 8px; max-height: 400px; overflow-y: auto;">
                     ${Object.keys(itemStats).length === 0 ? 
                         '<p style="color: #666; text-align: center; padding: 40px;">No production data available</p>' : 
@@ -1090,10 +1052,10 @@ if ('serviceWorker' in navigator) {
             `;
         }
 
-        // SMART REFRESH - One button that does everything
+        // SMART REFRESH
         function smartRefresh() {
-            loadFromCloud();
-            alert('✅ Smart Refresh Complete!\n✓ Data Refreshed\n✓ Production Updated\n✓ Reports Generated');
+            location.reload();
+            alert('✅ System Refreshed!');
         }
     </script>
 </body>
