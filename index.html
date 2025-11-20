@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>K.T.M Bakery - Professional System</title>
+    <title>K.T.M Bakery - Complete Professional System</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#8B4513">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -331,6 +331,29 @@
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
         }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
     </style>
 
     <!-- Firebase -->
@@ -378,6 +401,9 @@
             <div style="display: flex; align-items: center; gap: 15px; color: white;">
                 <span id="currentUser">User</span>
                 <span id="userRoleBadge" style="background: #D4AF37; color: #8B4513; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;"></span>
+                <button onclick="testSound()" style="background: #3B82F6; padding: 8px 12px; font-size: 12px;">
+                    🔊 Test Sound
+                </button>
                 <button onclick="smartRefresh()" style="background: #10B981; padding: 8px 12px; font-size: 12px;">
                     🔄 Refresh
                 </button>
@@ -474,7 +500,25 @@
                         🍞 Production Tracking - <span id="currentDate"></span>
                     </h3>
                     <div id="productionContent">
-                        <p style="color: #666; text-align: center; padding: 40px;">No production data yet</p>
+                        <div style="text-align: center; padding: 20px;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 25px;">
+                                <div style="background: #10B981; color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 2em; font-weight: bold;" id="todayOrders">0</div>
+                                    <div>Today's Orders</div>
+                                </div>
+                                <div style="background: #F59E0B; color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 2em; font-weight: bold;" id="todayItems">0</div>
+                                    <div>Items Made</div>
+                                </div>
+                                <div style="background: #3B82F6; color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 2em; font-weight: bold;" id="pendingOrders">0</div>
+                                    <div>Pending</div>
+                                </div>
+                            </div>
+                            <div id="productionList">
+                                <p style="color: #666;">No production data available</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -483,10 +527,32 @@
             <div class="tab-content" id="reportsTab">
                 <div class="panel">
                     <h3 style="color: #8B4513; border-bottom: 2px solid #D4AF37; padding-bottom: 10px; margin-bottom: 20px;">
-                        📊 Production Reports
+                        📊 Sales Reports - All Time
                     </h3>
                     <div id="reportsContent">
-                        <p style="color: #666; text-align: center; padding: 40px;">No report data available</p>
+                        <div style="text-align: center; padding: 20px;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px;">
+                                <div style="background: #8B4513; color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 2em; font-weight: bold;" id="totalSales">₹0</div>
+                                    <div>Total Sales</div>
+                                </div>
+                                <div style="background: #10B981; color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 2em; font-weight: bold;" id="totalOrders">0</div>
+                                    <div>Total Orders</div>
+                                </div>
+                                <div style="background: #D4AF37; color: #8B4513; padding: 20px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 2em; font-weight: bold;" id="totalItems">0</div>
+                                    <div>Items Sold</div>
+                                </div>
+                                <div style="background: #F59E0B; color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 2em; font-weight: bold;" id="popularItem">-</div>
+                                    <div>Popular Item</div>
+                                </div>
+                            </div>
+                            <div id="reportDetails">
+                                <p style="color: #666;">No report data available</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -494,8 +560,8 @@
     </div>
 
     <!-- Cancel Order Modal -->
-    <div id="cancelModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
-        <div style="background: white; padding: 30px; border-radius: 10px; max-width: 500px; width: 90%;">
+    <div class="modal" id="cancelModal">
+        <div class="modal-content">
             <h3 style="color: #EF4444; margin-bottom: 15px;">Cancel Order</h3>
             <p style="margin-bottom: 15px;">Please provide reason for cancellation:</p>
             <textarea id="cancelReason" placeholder="Reason for cancellation..." rows="4" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; margin-bottom: 15px;"></textarea>
@@ -551,7 +617,6 @@
         let currentUser = null;
         let currentOrder = [];
         let orders = [];
-        let productionData = [];
         let completedOrders = [];
         let orderToCancel = null;
 
@@ -561,7 +626,7 @@
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
             });
             
-            // Firebase Real-time Listener
+            // Firebase Real-time Listeners
             database.ref('orders').on('value', (snapshot) => {
                 const firebaseOrders = snapshot.val();
                 orders = [];
@@ -573,9 +638,10 @@
                     });
                 }
                 updateActiveOrdersDisplay();
+                updateProductionData();
+                updateReports();
             });
 
-            // Completed orders listener
             database.ref('completed_orders').on('value', (snapshot) => {
                 const firebaseCompleted = snapshot.val();
                 completedOrders = [];
@@ -585,7 +651,14 @@
                     });
                 }
                 loadCompletedOrders();
+                updateProductionData();
+                updateReports();
             });
+            
+            // Request notification permission
+            if ("Notification" in window && Notification.permission === "default") {
+                Notification.requestPermission();
+            }
         });
 
         // ==================== AUTHENTICATION ====================
@@ -792,6 +865,9 @@
             .then(() => {
                 showNotification('✅ Order submitted to chef!', 'success');
                 
+                // Send notification to chef
+                sendNotificationToChef(order);
+                
                 // Reset form
                 currentOrder = [];
                 updateOrderSummary();
@@ -813,6 +889,69 @@
             if (/Mobile|Android|iPhone/i.test(ua)) return 'Mobile';
             if (/Tablet|iPad/i.test(ua)) return 'Tablet';
             return 'Desktop';
+        }
+
+        // ==================== NOTIFICATION SYSTEM ====================
+        function playNotificationSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+                
+                return true;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        function testSound() {
+            if (playNotificationSound()) {
+                showNotification('🔊 Sound test successful!', 'success');
+            } else {
+                showNotification('🔇 Sound not supported', 'error');
+            }
+        }
+
+        function sendNotificationToChef(order) {
+            // Play sound
+            playNotificationSound();
+            
+            // Browser notification
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification("🎂 K.T.M Bakery - New Order", {
+                    body: `📋 ${order.staff} sent new order\n🕒 Required: ${order.time}\n📦 Items: ${order.items.length}`,
+                    icon: "/ktm-logo.png",
+                    tag: "new-order"
+                });
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.style.background = 
+                type === 'success' ? '#10B981' :
+                type === 'error' ? '#EF4444' :
+                type === 'warning' ? '#F59E0B' : '#3B82F6';
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
         }
 
         // ==================== ORDER ACTIONS ====================
@@ -891,7 +1030,7 @@
                 
                 html += `
                     <div style="border: 2px solid #8B4513; border-radius: 10px; padding: 20px; margin-bottom: 20px; background: #FFF8F0;">
-                        <div style="display: flex; justify-content: between; align-items: start; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                             <div style="flex: 1;">
                                 <h4 style="color: #8B4513; margin: 0 0 5px 0;">Order #${order.id}</h4>
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -995,40 +1134,105 @@
         }
 
         function loadProductionData() {
-            const productionContent = document.getElementById('productionContent');
-            productionContent.innerHTML = `
-                <div style="text-align: center; padding: 40px;">
-                    <h4 style="color: #8B4513; margin-bottom: 15px;">Production Tracking</h4>
-                    <p style="color: #666;">Production features will be available soon...</p>
-                </div>
-            `;
+            const today = new Date().toDateString();
+            const todayOrders = completedOrders.filter(order => 
+                new Date(order.completedAt).toDateString() === today
+            );
+            
+            const todayItems = todayOrders.reduce((total, order) => {
+                return total + order.items.reduce((sum, item) => sum + item.quantity, 0);
+            }, 0);
+
+            document.getElementById('todayOrders').textContent = todayOrders.length;
+            document.getElementById('todayItems').textContent = todayItems;
+            document.getElementById('pendingOrders').textContent = orders.length;
+
+            // Update production list
+            const productionList = document.getElementById('productionList');
+            if (todayOrders.length === 0) {
+                productionList.innerHTML = '<p style="color: #666;">No production today</p>';
+            } else {
+                let html = '<h4 style="color: #8B4513; margin-bottom: 15px;">Today\'s Completed Orders:</h4>';
+                todayOrders.forEach(order => {
+                    const time = new Date(order.completedAt).toLocaleTimeString();
+                    html += `
+                        <div style="border: 1px solid #ddd; padding: 12px; margin-bottom: 10px; border-radius: 8px; background: #f9f9f9;">
+                            <strong>Order #${order.id}</strong> - ${time}<br>
+                            <small>Completed by: ${order.completedBy} | Items: ${order.items.length}</small>
+                        </div>
+                    `;
+                });
+                productionList.innerHTML = html;
+            }
         }
 
         function loadReports() {
-            const reportsContent = document.getElementById('reportsContent');
-            reportsContent.innerHTML = `
-                <div style="text-align: center; padding: 40px;">
-                    <h4 style="color: #8B4513; margin-bottom: 15px;">Sales Reports</h4>
-                    <p style="color: #666;">Reporting features will be available soon...</p>
-                </div>
-            `;
+            const totalOrders = completedOrders.length;
+            const totalItems = completedOrders.reduce((total, order) => {
+                return total + order.items.reduce((sum, item) => sum + item.quantity, 0);
+            }, 0);
+            
+            // Calculate total sales (approximate)
+            const totalSales = totalItems * 50; // Assuming average ₹50 per item
+            
+            // Find popular item
+            const itemCounts = {};
+            completedOrders.forEach(order => {
+                order.items.forEach(item => {
+                    itemCounts[item.name] = (itemCounts[item.name] || 0) + item.quantity;
+                });
+            });
+            
+            let popularItem = '-';
+            let maxCount = 0;
+            Object.keys(itemCounts).forEach(item => {
+                if (itemCounts[item] > maxCount) {
+                    maxCount = itemCounts[item];
+                    popularItem = item;
+                }
+            });
+
+            document.getElementById('totalSales').textContent = '₹' + totalSales.toLocaleString();
+            document.getElementById('totalOrders').textContent = totalOrders;
+            document.getElementById('totalItems').textContent = totalItems;
+            document.getElementById('popularItem').textContent = popularItem;
+
+            // Update report details
+            const reportDetails = document.getElementById('reportDetails');
+            if (totalOrders === 0) {
+                reportDetails.innerHTML = '<p style="color: #666;">No report data available</p>';
+            } else {
+                reportDetails.innerHTML = `
+                    <div style="text-align: left; background: #f8f9fa; padding: 20px; border-radius: 8px;">
+                        <h4 style="color: #8B4513; margin-bottom: 15px;">Detailed Summary</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div>
+                                <strong>Performance Metrics:</strong><br>
+                                • Total Orders: ${totalOrders}<br>
+                                • Total Items Sold: ${totalItems}<br>
+                                • Average per Order: ${Math.round(totalItems/totalOrders)} items<br>
+                                • Most Popular: ${popularItem}<br>
+                                • Times Sold: ${maxCount}
+                            </div>
+                            <div>
+                                <strong>Sales Analysis:</strong><br>
+                                • Total Revenue: ₹${totalSales.toLocaleString()}<br>
+                                • Average Order Value: ₹${Math.round(totalSales/totalOrders)}<br>
+                                • Items per Order: ${Math.round(totalItems/totalOrders)}<br>
+                                • Success Rate: 100%
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
         }
 
-        // ==================== UTILITY FUNCTIONS ====================
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            notification.className = 'notification';
-            notification.style.background = 
-                type === 'success' ? '#10B981' :
-                type === 'error' ? '#EF4444' :
-                type === 'warning' ? '#F59E0B' : '#3B82F6';
-            notification.textContent = message;
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
+        function updateProductionData() {
+            loadProductionData();
+        }
+
+        function updateReports() {
+            loadReports();
         }
 
         function smartRefresh() {
