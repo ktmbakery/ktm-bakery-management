@@ -470,11 +470,16 @@
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('currentDate').textContent = new Date().toDateString();
             
-            // ✅ FIREBASE REAL-TIME LISTENER
+            // ✅ FIREBASE REAL-TIME LISTENER - FIXED
             database.ref('orders').on('value', (snapshot) => {
                 const firebaseOrders = snapshot.val();
+                orders = [];
                 if (firebaseOrders) {
-                    orders = Object.values(firebaseOrders);
+                    Object.keys(firebaseOrders).forEach(key => {
+                        orders.push(firebaseOrders[key]);
+                    });
+                    updateActiveOrdersDisplay();
+                } else {
                     updateActiveOrdersDisplay();
                 }
             });
@@ -604,7 +609,7 @@
                     <h4>${item}</h4>
                     <div style="margin: 10px 0;">
                         <label>Quantity:</label>
-                        <input type="number" class="quantity-input" id="qty-${item}" placeholder="0" min="0">
+                        <input type="number" class="quantity-input" id="qty-${item.replace(/\s+/g, '-')}" placeholder="0" min="0">
                     </div>
                     <button class="add-order-btn" onclick="addToOrder('${item}')">
                         Add to Order
@@ -615,7 +620,8 @@
         }
 
         function addToOrder(itemName) {
-            const quantityInput = document.getElementById('qty-' + itemName);
+            const safeId = itemName.replace(/\s+/g, '-');
+            const quantityInput = document.getElementById('qty-' + safeId);
             const quantity = quantityInput.value;
             
             if (quantity && quantity > 0) {
@@ -652,6 +658,7 @@
             updateOrderSummary();
         }
 
+        // ==================== SUBMIT ORDER - FIXED ====================
         function submitOrder() {
             if (currentOrder.length === 0) {
                 alert('Please add items to order!');
@@ -667,61 +674,66 @@
                 instructions: document.getElementById('specialInstructions').value,
                 items: [...currentOrder],
                 status: 'new',
-                timestamp: new Date(),
+                timestamp: new Date().toISOString(),
                 device: 'Device-' + Math.random().toString(36).substr(2, 5)
             };
 
-            orders.push(order);
-            
-            // ✅ FIREBASE DATABASE मा SAVE गर्ने
+            // ✅ FIREBASE DATABASE मा SAVE गर्ने - FIXED
             database.ref('orders/' + order.id).set(order)
             .then(() => {
                 console.log('Order saved to Firebase!');
+                
+                // Local arrays मा पनि add गर्ने
+                orders.push(order);
+                
+                const productionRecord = {
+                    orderId: order.id,
+                    items: [...currentOrder],
+                    produced: currentOrder.map(item => ({ name: item.name, quantity: 0 })),
+                    status: 'pending',
+                    date: new Date().toDateString(),
+                    timestamp: new Date().toISOString()
+                };
+                productionData.push(productionRecord);
+
+                sendNotificationToChef(order);
+
+                currentOrder = [];
+                updateOrderSummary();
+                
+                document.getElementById('requiredTime').value = '';
+                document.getElementById('specialInstructions').value = '';
+                document.getElementById('partyName').value = '';
+                
+                alert('✅ Order sent! Chef will be notified immediately.\nTotal items: ' + order.items.length);
             })
             .catch((error) => {
                 console.error('Firebase error:', error);
-                alert('Firebase error: ' + error.message);
+                alert('Error saving order: ' + error.message);
             });
-
-            const productionRecord = {
-                orderId: order.id,
-                items: [...currentOrder],
-                produced: currentOrder.map(item => ({ name: item.name, quantity: 0 })),
-                status: 'pending',
-                date: new Date().toDateString(),
-                timestamp: new Date()
-            };
-            productionData.push(productionRecord);
-
-            sendNotificationToChef(order);
-
-            currentOrder = [];
-            updateOrderSummary();
-            
-            document.getElementById('requiredTime').value = '';
-            document.getElementById('specialInstructions').value = '';
-            document.getElementById('partyName').value = '';
-            
-            alert('✅ Order sent! Chef will be notified immediately.\nTotal items: ' + order.items.length);
         }
 
         // ==================== NOTIFICATION SYSTEM ====================
         function playNotificationSound() {
-            const context = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = context.createOscillator();
-            const gainNode = context.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(context.destination);
-            
-            oscillator.frequency.value = 800;
-            oscillator.type = 'sine';
-            
-            gainNode.gain.setValueAtTime(0.3, context.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 1);
-            
-            oscillator.start(context.currentTime);
-            oscillator.stop(context.currentTime + 1);
+            try {
+                const context = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = context.createOscillator();
+                const gainNode = context.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(context.destination);
+                
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, context.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 1);
+                
+                oscillator.start(context.currentTime);
+                oscillator.stop(context.currentTime + 1);
+            } catch (error) {
+                console.log('Audio not supported');
+            }
         }
 
         function sendNotificationToChef(order) {
@@ -777,14 +789,19 @@
                 cancelledOrder.status = 'cancelled';
                 cancelledOrder.cancelledBy = currentUser.name;
                 cancelledOrder.cancelledReason = reason;
-                cancelledOrder.cancelledAt = new Date();
+                cancelledOrder.cancelledAt = new Date().toISOString();
                 
                 completedOrders.push(cancelledOrder);
                 orders.splice(orderIndex, 1);
                 
                 // ✅ FIREBASE मा UPDATE गर्ने
-                database.ref('orders/' + orderToCancel).remove();
-                alert('✅ Order cancelled successfully!');
+                database.ref('orders/' + orderToCancel).remove()
+                .then(() => {
+                    alert('✅ Order cancelled successfully!');
+                })
+                .catch((error) => {
+                    alert('Error cancelling order: ' + error.message);
+                });
             }
             closeCancelModal();
         }
@@ -794,14 +811,19 @@
             if (orderIndex !== -1) {
                 const completedOrder = orders[orderIndex];
                 completedOrder.status = 'completed';
-                completedOrder.completedAt = new Date();
+                completedOrder.completedAt = new Date().toISOString();
                 
                 completedOrders.push(completedOrder);
                 orders.splice(orderIndex, 1);
                 
                 // ✅ FIREBASE मा UPDATE गर्ने
-                database.ref('orders/' + orderId).remove();
-                alert('✅ Order marked as completed!');
+                database.ref('orders/' + orderId).remove()
+                .then(() => {
+                    alert('✅ Order marked as completed!');
+                })
+                .catch((error) => {
+                    alert('Error completing order: ' + error.message);
+                });
             }
         }
 
