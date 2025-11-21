@@ -378,6 +378,23 @@
             width: 90%;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
+
+        /* Android Sync Button */
+        #androidRefreshBtn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #DC2626;
+            color: white;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 10px;
+            z-index: 10000;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
     </style>
 
     <!-- Firebase -->
@@ -668,8 +685,118 @@
         let orderToCancel = null;
         let previousOrdersCount = 0;
 
+        // ==================== ANDROID FIX SYSTEM ====================
+        function setupAndroidFirebase() {
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            
+            if (isAndroid && currentUser && currentUser.role === 'chef') {
+                console.log("📱 ANDROID CHEF - Special Setup Started...");
+                
+                // 1. Force background sync every 15 seconds
+                setInterval(() => {
+                    console.log("🔄 Android Background Sync Running...");
+                    database.ref('orders').once('value').then((snapshot) => {
+                        const orders = snapshot.val();
+                        const orderCount = orders ? Object.keys(orders).length : 0;
+                        console.log("📊 Android Sync - Orders Found:", orderCount);
+                        
+                        // New order check garne
+                        if (orderCount > previousOrdersCount) {
+                            console.log("🚨 NEW ORDER DETECTED ON ANDROID!");
+                            playNotificationSound();
+                            showNotification(`🔥 NEW ORDER: ${orderCount} orders waiting`, 'success');
+                        }
+                        
+                        previousOrdersCount = orderCount;
+                        updateActiveOrdersDisplay();
+                    });
+                }, 15000);
+                
+                // 2. Android ko lagi manual sync button
+                addAndroidRefreshButton();
+                
+                // 3. Initial force load
+                setTimeout(() => {
+                    forceRefreshOrders();
+                }, 2000);
+            }
+        }
+
+        function addAndroidRefreshButton() {
+            const existingBtn = document.getElementById('androidRefreshBtn');
+            if (existingBtn) existingBtn.remove();
+            
+            const refreshBtn = document.createElement('button');
+            refreshBtn.id = 'androidRefreshBtn';
+            refreshBtn.innerHTML = '🔄 ANDROID SYNC';
+            refreshBtn.onclick = function() {
+                console.log("📱 Android Manual Sync Clicked");
+                showNotification('🔄 Syncing orders for Android...', 'info');
+                forceRefreshOrders();
+            };
+            
+            document.body.appendChild(refreshBtn);
+        }
+
+        function forceRefreshOrders() {
+            database.ref('orders').once('value').then((snapshot) => {
+                const orders = snapshot.val();
+                const orderCount = orders ? Object.keys(orders).length : 0;
+                console.log("🔄 Android Force Refresh - Orders:", orderCount);
+                
+                if (orderCount > 0) {
+                    showNotification(`✅ ${orderCount} orders synced to Android!`, 'success');
+                    playNotificationSound();
+                }
+                
+                updateActiveOrdersDisplay();
+            });
+        }
+
+        // ==================== REFRESH PROBLEM FIX ====================
+        function saveUserSession(user) {
+            localStorage.setItem('currentUser', JSON.stringify(user));
+            localStorage.setItem('userLoginTime', new Date().toISOString());
+        }
+
+        function loadUserSession() {
+            const savedUser = localStorage.getItem('currentUser');
+            const loginTime = localStorage.getItem('userLoginTime');
+            
+            if (savedUser && loginTime) {
+                // Check if session is still valid (24 hours)
+                const loginDate = new Date(loginTime);
+                const currentDate = new Date();
+                const hoursDiff = (currentDate - loginDate) / (1000 * 60 * 60);
+                
+                if (hoursDiff < 24) { // 24 hours session
+                    currentUser = JSON.parse(savedUser);
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('mainSystem').style.display = 'block';
+                    document.getElementById('currentUser').textContent = currentUser.name;
+                    document.getElementById('userRoleBadge').textContent = currentUser.role.toUpperCase();
+                    
+                    setupUserTabs();
+                    loadCategories();
+                    showNotification('Welcome back! Session restored.', 'success');
+                    
+                    // Android setup if chef
+                    if (currentUser.role === 'chef') {
+                        setupAndroidFirebase();
+                    }
+                } else {
+                    // Session expired
+                    localStorage.removeItem('currentUser');
+                    localStorage.removeItem('userLoginTime');
+                }
+            }
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
+            // Load user session if exists
+            loadUserSession();
+            
             document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', { 
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
             });
@@ -719,6 +846,10 @@
 
             if (user) {
                 currentUser = user;
+                
+                // Save session to localStorage - REFRESH FIX
+                saveUserSession(user);
+                
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('mainSystem').style.display = 'block';
                 document.getElementById('currentUser').textContent = user.name;
@@ -727,6 +858,11 @@
                 setupUserTabs();
                 loadCategories();
                 showNotification('Login successful!', 'success');
+                
+                // Android setup for chef
+                if (user.role === 'chef') {
+                    setupAndroidFirebase();
+                }
                 
                 // Show notification modal for chef
                 if (user.role === 'chef') {
@@ -740,10 +876,18 @@
 
         function logout() {
             currentUser = null;
+            // Clear session - REFRESH FIX
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('userLoginTime');
+            
             document.getElementById('mainSystem').style.display = 'none';
             document.getElementById('loginScreen').style.display = 'flex';
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
+            
+            // Remove Android button
+            const androidBtn = document.getElementById('androidRefreshBtn');
+            if (androidBtn) androidBtn.remove();
         }
 
         // ==================== NOTIFICATION MODAL SYSTEM ====================
@@ -985,8 +1129,8 @@
 
         function getDeviceInfo() {
             const ua = navigator.userAgent;
-            if (/Mobile|Android|iPhone/i.test(ua)) return 'Mobile';
-            if (/Tablet|iPad/i.test(ua)) return 'Tablet';
+            if (/Mobile|Android/i.test(ua)) return 'Android';
+            if (/iPhone|iPad/i.test(ua)) return 'iPhone';
             return 'Desktop';
         }
 
