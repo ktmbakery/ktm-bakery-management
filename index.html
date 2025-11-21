@@ -395,6 +395,22 @@
             font-weight: bold;
             box-shadow: 0 4px 12px rgba(0,0,0,0.4);
         }
+
+        /* Android Test Button */
+        #androidTestBtn {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: #3B82F6;
+            color: white;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 8px;
+            z-index: 10000;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
     </style>
 
     <!-- Firebase -->
@@ -715,7 +731,10 @@
                 // 2. Android ko lagi manual sync button
                 addAndroidRefreshButton();
                 
-                // 3. Initial force load
+                // 3. Add test button for Android
+                addAndroidTestButton();
+                
+                // 4. Initial force load
                 setTimeout(() => {
                     forceRefreshOrders();
                 }, 2000);
@@ -738,6 +757,20 @@
             document.body.appendChild(refreshBtn);
         }
 
+        function addAndroidTestButton() {
+            const existingBtn = document.getElementById('androidTestBtn');
+            if (existingBtn) existingBtn.remove();
+            
+            const testBtn = document.createElement('button');
+            testBtn.id = 'androidTestBtn';
+            testBtn.innerHTML = '🔔 Test Notification';
+            testBtn.onclick = function() {
+                testAndroidNotification();
+            };
+            
+            document.body.appendChild(testBtn);
+        }
+
         function forceRefreshOrders() {
             database.ref('orders').once('value').then((snapshot) => {
                 const orders = snapshot.val();
@@ -753,13 +786,85 @@
             });
         }
 
+        // ==================== ANDROID NOTIFICATION FIX ====================
+        function testAndroidNotification() {
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            
+            if (isAndroid) {
+                if (Notification.permission === "granted") {
+                    // Test all notification methods
+                    sendAndroidNotificationTest();
+                    showNotification('🔔 Test notification sent!', 'success');
+                } else {
+                    alert("❌ Notification permission not granted. Please enable notifications.");
+                    enableAndroidNotifications();
+                }
+            }
+        }
+
+        function sendAndroidNotificationTest() {
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            if (!isAndroid) return;
+
+            console.log("📱 Sending Android test notification...");
+            
+            // Method 1: Standard Notification
+            if (Notification.permission === "granted") {
+                try {
+                    const notification = new Notification("🎂 TEST - KTM Bakery", {
+                        body: "This is a test notification from Android",
+                        icon: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
+                        badge: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
+                        tag: "android-test",
+                        requireInteraction: true,
+                        vibrate: [200, 100, 200]
+                    });
+                    
+                    notification.onclick = function() {
+                        window.focus();
+                        this.close();
+                    };
+                    
+                } catch (error) {
+                    console.log("❌ Standard notification failed:", error);
+                    fallbackAndroidAlertTest();
+                }
+            } else {
+                fallbackAndroidAlertTest();
+            }
+        }
+
+        function fallbackAndroidAlertTest() {
+            alert("🔔 TEST NOTIFICATION\n\nIf you see this alert, sound is working but browser notifications are blocked.\n\nPlease enable browser notifications in settings.");
+        }
+
         // ==================== REFRESH PROBLEM FIX ====================
         function saveUserSession(user) {
             localStorage.setItem('currentUser', JSON.stringify(user));
             localStorage.setItem('userLoginTime', new Date().toISOString());
+            
+            // Android ko lagi additional security
+            if (/Android/i.test(navigator.userAgent)) {
+                sessionStorage.setItem('androidSession', 'active');
+                sessionStorage.setItem('androidUser', JSON.stringify(user));
+            }
         }
 
         function loadUserSession() {
+            // Android ma sessionStorage check garne
+            if (/Android/i.test(navigator.userAgent)) {
+                const androidSession = sessionStorage.getItem('androidSession');
+                const androidUser = sessionStorage.getItem('androidUser');
+                
+                if (androidSession && androidUser) {
+                    // Android ma session cha bhane load gara
+                    currentUser = JSON.parse(androidUser);
+                    restoreAndroidSession();
+                    return;
+                }
+            }
+            
+            // Normal localStorage check
             const savedUser = localStorage.getItem('currentUser');
             const loginTime = localStorage.getItem('userLoginTime');
             
@@ -769,26 +874,46 @@
                 const currentDate = new Date();
                 const hoursDiff = (currentDate - loginDate) / (1000 * 60 * 60);
                 
-                if (hoursDiff < 24) { // 24 hours session
+                if (hoursDiff < 24) {
                     currentUser = JSON.parse(savedUser);
-                    document.getElementById('loginScreen').style.display = 'none';
-                    document.getElementById('mainSystem').style.display = 'block';
-                    document.getElementById('currentUser').textContent = currentUser.name;
-                    document.getElementById('userRoleBadge').textContent = currentUser.role.toUpperCase();
-                    
-                    setupUserTabs();
-                    loadCategories();
-                    showNotification('Welcome back! Session restored.', 'success');
-                    
-                    // Android setup if chef
-                    if (currentUser.role === 'chef') {
-                        setupAndroidFirebase();
-                    }
+                    restoreUserSession();
                 } else {
                     // Session expired
                     localStorage.removeItem('currentUser');
                     localStorage.removeItem('userLoginTime');
                 }
+            }
+        }
+
+        function restoreUserSession() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('mainSystem').style.display = 'block';
+            document.getElementById('currentUser').textContent = currentUser.name;
+            document.getElementById('userRoleBadge').textContent = currentUser.role.toUpperCase();
+            
+            setupUserTabs();
+            loadCategories();
+            showNotification('Welcome back! Session restored.', 'success');
+            
+            // Android setup if chef
+            if (currentUser.role === 'chef') {
+                setupAndroidFirebase();
+            }
+        }
+
+        function restoreAndroidSession() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('mainSystem').style.display = 'block';
+            document.getElementById('currentUser').textContent = currentUser.name;
+            document.getElementById('userRoleBadge').textContent = currentUser.role.toUpperCase();
+            
+            setupUserTabs();
+            loadCategories();
+            showNotification('📱 Android session restored!', 'success');
+            
+            // Android setup if chef
+            if (currentUser.role === 'chef') {
+                setupAndroidFirebase();
             }
         }
 
@@ -862,6 +987,11 @@
                 // Android setup for chef
                 if (user.role === 'chef') {
                     setupAndroidFirebase();
+                    
+                    // Android notification setup
+                    setTimeout(() => {
+                        enableAndroidNotifications();
+                    }, 2000);
                 }
                 
                 // Show notification modal for chef
@@ -880,14 +1010,177 @@
             localStorage.removeItem('currentUser');
             localStorage.removeItem('userLoginTime');
             
+            // Android session clear
+            if (/Android/i.test(navigator.userAgent)) {
+                sessionStorage.removeItem('androidSession');
+                sessionStorage.removeItem('androidUser');
+            }
+            
             document.getElementById('mainSystem').style.display = 'none';
             document.getElementById('loginScreen').style.display = 'flex';
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
             
-            // Remove Android button
+            // Remove Android buttons
             const androidBtn = document.getElementById('androidRefreshBtn');
             if (androidBtn) androidBtn.remove();
+            
+            const testBtn = document.getElementById('androidTestBtn');
+            if (testBtn) testBtn.remove();
+        }
+
+        // ==================== ANDROID NOTIFICATION SYSTEM ====================
+        function enableAndroidNotifications() {
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            
+            if (isAndroid && currentUser && currentUser.role === 'chef') {
+                console.log("📱 Android - Setting up notifications...");
+                
+                // Direct permission request
+                if (Notification.permission === "default") {
+                    Notification.requestPermission().then(permission => {
+                        if (permission === "granted") {
+                            showNotification('🎉 Android notifications enabled!', 'success');
+                            
+                            // Test notification
+                            setTimeout(() => {
+                                sendAndroidNotificationTest();
+                            }, 1000);
+                        } else {
+                            showNotification('❌ Notifications blocked on Android', 'error');
+                        }
+                    });
+                } else if (Notification.permission === "granted") {
+                    showNotification('✅ Android notifications ready!', 'success');
+                }
+            }
+        }
+
+        function sendChefAlert(order) {
+            console.log('🔔 SENDING ALERT TO CHEF...');
+            
+            // Play sound - yesle kaam garcha
+            playNotificationSound();
+            
+            // Show in-app notification - yesle pani kaam garcha
+            showNotification(`🔥 NEW ORDER: ${order.items.length} items from ${order.staff}`, 'success');
+            
+            // Android ma special notification
+            if (/Android/i.test(navigator.userAgent)) {
+                sendAndroidOrderNotification(order);
+            } else {
+                // iPhone ma normal notification
+                sendStandardNotification(order);
+            }
+        }
+
+        function sendAndroidOrderNotification(order) {
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            if (!isAndroid) return;
+
+            console.log("📱 Sending Android order notification...");
+            
+            // Method 1: Standard Notification
+            if (Notification.permission === "granted") {
+                try {
+                    const notification = new Notification("🎂 ORDER #" + order.id, {
+                        body: `${order.items.length} items from ${order.staff} - ${order.time}`,
+                        icon: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
+                        badge: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
+                        tag: "ktm-order-" + order.id,
+                        requireInteraction: true,
+                        vibrate: [200, 100, 200]
+                    });
+                    
+                    notification.onclick = function() {
+                        window.focus();
+                        this.close();
+                    };
+                    
+                } catch (error) {
+                    console.log("❌ Android notification failed:", error);
+                    fallbackAndroidOrderAlert(order);
+                }
+            } else {
+                fallbackAndroidOrderAlert(order);
+            }
+        }
+
+        function sendStandardNotification(order) {
+            // iPhone ko lagi standard notification
+            if (Notification.permission === "granted") {
+                new Notification("🎂 NEW ORDER #" + order.id, {
+                    body: `${order.items.length} items from ${order.staff} - ${order.time}`,
+                    icon: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
+                    tag: "new-order"
+                });
+            }
+        }
+
+        function fallbackAndroidOrderAlert(order) {
+            // Android ma alert as fallback
+            if (confirm(`🎂 NEW ORDER!\n\nOrder #${order.id}\n${order.items.length} items from ${order.staff}\nRequired: ${order.time}\n\nClick OK to view`)) {
+                window.focus();
+            }
+            
+            // Page title flash
+            flashPageTitle(`🎂 NEW ORDER! (${order.items.length} items)`);
+        }
+
+        function flashPageTitle(message) {
+            let originalTitle = document.title;
+            let flashCount = 0;
+            const maxFlashes = 6;
+            
+            const flashInterval = setInterval(() => {
+                if (flashCount < maxFlashes) {
+                    document.title = (document.title === originalTitle) ? message : originalTitle;
+                    flashCount++;
+                } else {
+                    clearInterval(flashInterval);
+                    document.title = originalTitle;
+                }
+            }, 800);
+        }
+
+        function playNotificationSound() {
+            try {
+                // Android compatible sound
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                // Android ma high frequency better
+                oscillator.frequency.value = 1000;
+                gainNode.gain.value = 0.5;
+                oscillator.type = 'sine';
+                
+                oscillator.start();
+                
+                // Android ma longer sound
+                setTimeout(() => {
+                    oscillator.stop();
+                }, 500);
+                
+            } catch (error) {
+                console.log('Sound play failed:', error);
+                // Fallback: HTML5 Audio
+                playFallbackSound();
+            }
+        }
+
+        function playFallbackSound() {
+            try {
+                // Simple beep sound for Android
+                const audio = new Audio();
+                audio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
+                audio.play().catch(e => console.log("HTML5 audio failed"));
+            } catch (e) {
+                console.log("HTML5 audio failed");
+            }
         }
 
         // ==================== NOTIFICATION MODAL SYSTEM ====================
@@ -1148,47 +1441,6 @@
             }
             
             previousOrdersCount = currentCount;
-        }
-
-        function sendChefAlert(order) {
-            console.log('🔔 SENDING ALERT TO CHEF...');
-            
-            // Play sound
-            playNotificationSound();
-            
-            // Show browser notification if enabled
-            if (Notification.permission === "granted") {
-                new Notification("🎂 NEW ORDER #" + order.id, {
-                    body: `${order.items.length} items from ${order.staff} - ${order.time}`,
-                    icon: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
-                    tag: "new-order"
-                });
-            }
-            
-            // Show in-app notification
-            showNotification(`🔥 NEW ORDER: ${order.items.length} items from ${order.staff}`, 'success');
-        }
-
-        function playNotificationSound() {
-            try {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.frequency.value = 800;
-                gainNode.gain.value = 0.3;
-                oscillator.type = 'sine';
-                
-                oscillator.start();
-                setTimeout(() => {
-                    oscillator.stop();
-                }, 300);
-            } catch (error) {
-                console.log('Sound play failed:', error);
-            }
         }
 
         // ==================== NOTIFICATION SYSTEM ====================
