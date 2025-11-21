@@ -273,47 +273,28 @@
         .status-completed { background: #6B7280; color: white; }
         .status-cancelled { background: #EF4444; color: white; }
 
-        /* Emergency Alert Styles */
-        .emergency-alert {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: #ff4444;
-            color: white;
-            padding: 40px;
-            border-radius: 20px;
-            z-index: 9999;
-            font-size: 28px;
-            font-weight: bold;
-            text-align: center;
-            box-shadow: 0 0 50px rgba(255,0,0,0.8);
-            border: 5px solid white;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: translate(-50%, -50%) scale(1); }
-            50% { transform: translate(-50%, -50%) scale(1.05); }
-            100% { transform: translate(-50%, -50%) scale(1); }
-        }
-
-        .screen-flash {
+        /* Notification Modal */
+        .notification-modal {
+            display: none;
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(255, 0, 0, 0.3);
-            z-index: 9998;
-            pointer-events: none;
-            animation: flash 0.5s;
+            background: rgba(0,0,0,0.8);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
         }
-
-        @keyframes flash {
-            0% { opacity: 0; }
-            50% { opacity: 1; }
-            100% { opacity: 0; }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
         /* Mobile Responsive */
@@ -337,12 +318,6 @@
             
             .panel {
                 padding: 15px;
-            }
-
-            .emergency-alert {
-                padding: 20px;
-                font-size: 20px;
-                width: 90%;
             }
         }
 
@@ -381,7 +356,7 @@
             to { transform: translateX(0); opacity: 1; }
         }
 
-        /* Modal */
+        /* Cancel Modal */
         .modal {
             display: none;
             position: fixed;
@@ -450,12 +425,6 @@
             <div style="display: flex; align-items: center; gap: 15px; color: white;">
                 <span id="currentUser">User</span>
                 <span id="userRoleBadge" style="background: #D4AF37; color: #8B4513; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;"></span>
-                <button onclick="testChefAlertSystem()" style="background: #ff4444; padding: 8px 12px; font-size: 12px;">
-                    🚨 Test Chef Alert
-                </button>
-                <button onclick="testSound()" style="background: #3B82F6; padding: 8px 12px; font-size: 12px;">
-                    🔊 Test Sound
-                </button>
                 <button onclick="smartRefresh()" style="background: #10B981; padding: 8px 12px; font-size: 12px;">
                     🔄 Refresh
                 </button>
@@ -611,6 +580,32 @@
         </div>
     </div>
 
+    <!-- Notification Modal - Shows after chef login -->
+    <div class="notification-modal" id="notificationModal">
+        <div class="modal-content">
+            <div style="font-size: 48px; margin-bottom: 20px;">🔔</div>
+            <h2 style="color: #8B4513; margin-bottom: 15px;">Enable Background Notifications</h2>
+            <p style="margin-bottom: 20px; line-height: 1.5;">
+                Get instant alerts when staff create new orders, even when app is closed - just like WhatsApp!
+            </p>
+            
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: left;">
+                <strong>📱 How it works:</strong><br>
+                • Staff creates order → You get notification<br>
+                • Works even when app is closed<br>
+                • Sound + Vibration alerts<br>
+                • Like WhatsApp/Messenger
+            </div>
+
+            <button onclick="enableNotifications()" style="background: #10B981; color: white; padding: 15px 30px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin: 10px;">
+                ✅ YES, ENABLE NOTIFICATIONS
+            </button>
+            <button onclick="skipNotifications()" style="background: #6c757d; color: white; padding: 15px 30px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin: 10px;">
+                ⏭️ SKIP FOR NOW
+            </button>
+        </div>
+    </div>
+
     <!-- Cancel Order Modal -->
     <div class="modal" id="cancelModal">
         <div class="modal-content">
@@ -691,7 +686,7 @@
                     });
                 }
                 
-                // 🚨 CHECK FOR NEW ORDERS AND ALERT CHEF
+                // Check for new orders and alert chef
                 checkAndAlertNewOrders();
                 updateActiveOrdersDisplay();
                 updateProductionData();
@@ -710,11 +705,6 @@
                 updateProductionData();
                 updateReports();
             });
-            
-            // Request notification permission
-            if ("Notification" in window && Notification.permission === "default") {
-                Notification.requestPermission();
-            }
         });
 
         // ==================== AUTHENTICATION ====================
@@ -738,9 +728,9 @@
                 loadCategories();
                 showNotification('Login successful!', 'success');
                 
-                // Chef login garda alert system activate
+                // Show notification modal for chef
                 if (user.role === 'chef') {
-                    showNotification('🔔 Chef alert system ACTIVATED! You will get loud alerts for new orders.', 'success', 5000);
+                    setTimeout(showNotificationModal, 1000);
                 }
                 
             } else {
@@ -754,6 +744,57 @@
             document.getElementById('loginScreen').style.display = 'flex';
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
+        }
+
+        // ==================== NOTIFICATION MODAL SYSTEM ====================
+        function showNotificationModal() {
+            // Check if already enabled or skipped
+            if (localStorage.getItem('chefNotifications') === 'enabled') {
+                return; // Already enabled, don't show modal
+            }
+            
+            if (localStorage.getItem('chefNotifications') === 'skipped') {
+                return; // User skipped, don't show modal
+            }
+            
+            // Show modal for chef
+            document.getElementById('notificationModal').style.display = 'flex';
+        }
+
+        function enableNotifications() {
+            // Hide modal first
+            document.getElementById('notificationModal').style.display = 'none';
+            
+            // Request notification permission
+            if (!"Notification" in window) {
+                showNotification('❌ Browser does not support notifications', 'error');
+                return;
+            }
+            
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    // Save to localStorage - don't show modal again
+                    localStorage.setItem('chefNotifications', 'enabled');
+                    showNotification('🎉 Background notifications enabled! You will get order alerts.', 'success');
+                    
+                    // Test notification
+                    if (Notification.permission === "granted") {
+                        new Notification("🎂 KTM Bakery", {
+                            body: "Background notifications enabled! You'll get order alerts.",
+                            icon: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png"
+                        });
+                    }
+                    
+                } else {
+                    showNotification('❌ Notifications blocked. You wont receive order alerts.', 'error');
+                }
+            });
+        }
+
+        function skipNotifications() {
+            document.getElementById('notificationModal').style.display = 'none';
+            localStorage.setItem('chefNotifications', 'skipped');
+            showNotification('Notifications skipped. You can enable later from settings.', 'info');
         }
 
         // ==================== ROLE-BASED SYSTEM ====================
@@ -949,193 +990,72 @@
             return 'Desktop';
         }
 
-        // ==================== EMERGENCY CHEF ALERT SYSTEM ====================
+        // ==================== CHEF ALERT SYSTEM ====================
         function checkAndAlertNewOrders() {
             const currentCount = orders.length;
             
             if (currentCount > previousOrdersCount && currentUser && currentUser.role === 'chef') {
                 // New order arrived for chef!
-                const newOrder = orders[0]; // Get the latest order
+                const newOrder = orders[0];
                 console.log('🚨 NEW ORDER DETECTED - ALERTING CHEF:', newOrder.id);
                 
-                // Send emergency alert to chef
-                sendEmergencyChefAlert(newOrder);
+                // Send alert to chef
+                sendChefAlert(newOrder);
             }
             
             previousOrdersCount = currentCount;
         }
 
-        function sendEmergencyChefAlert(order) {
-            console.log('🔔 SENDING EMERGENCY ALERT TO CHEF...');
+        function sendChefAlert(order) {
+            console.log('🔔 SENDING ALERT TO CHEF...');
             
-            // 1. PLAY LOUD EMERGENCY SOUND (ALWAYS WORKS)
-            playEmergencySound();
+            // Play sound
+            playNotificationSound();
             
-            // 2. SHOW BIG SCREEN ALERT (ALWAYS WORKS)
-            showEmergencyScreenAlert(order);
-            
-            // 3. FLASH THE SCREEN
-            flashScreen();
-            
-            // 4. TRY BROWSER NOTIFICATION (OPTIONAL)
-            try {
-                if ("Notification" in window && Notification.permission === "granted") {
-                    new Notification("🎂 K.T.M BAKERY - NEW ORDER!", {
-                        body: `📋 ${order.staff} | 🕒 ${order.time} | 📦 ${order.items.length} items`,
-                        icon: "/icons/icon-192.png",
-                        tag: "emergency-order",
-                        requireInteraction: true
-                    });
-                }
-            } catch (e) {
-                // Ignore if blocked
+            // Show browser notification if enabled
+            if (Notification.permission === "granted") {
+                new Notification("🎂 NEW ORDER #" + order.id, {
+                    body: `${order.items.length} items from ${order.staff} - ${order.time}`,
+                    icon: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
+                    tag: "new-order"
+                });
             }
             
-            // 5. FLASH ORDERS TAB
-            flashOrdersTab();
+            // Show in-app notification
+            showNotification(`🔥 NEW ORDER: ${order.items.length} items from ${order.staff}`, 'success');
         }
 
-        function playEmergencySound() {
-            console.log('🔊 PLAYING EMERGENCY SOUND...');
-            
-            // Method 1: Multiple audio attempts
+        function playNotificationSound() {
             try {
-                const audio1 = new Audio();
-                audio1.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
-                audio1.volume = 1.0;
-                audio1.play().catch(e => console.log('Audio1 failed'));
-            } catch (e) {}
-            
-            // Method 2: Speech synthesis (ALWAYS WORKS)
-            if ('speechSynthesis' in window) {
-                const speech = new SpeechSynthesisUtterance('Emergency! New bakery order received! Check kitchen display immediately!');
-                speech.volume = 1;
-                speech.rate = 1;
-                speech.pitch = 1.2;
-                window.speechSynthesis.speak(speech);
-            }
-            
-            // Method 3: Beep sound using Web Audio API
-            try {
-                const context = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = context.createOscillator();
-                const gainNode = context.createGain();
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
                 
                 oscillator.connect(gainNode);
-                gainNode.connect(context.destination);
+                gainNode.connect(audioContext.destination);
                 
                 oscillator.frequency.value = 800;
-                gainNode.gain.value = 0.5;
+                gainNode.gain.value = 0.3;
                 oscillator.type = 'sine';
                 
                 oscillator.start();
                 setTimeout(() => {
                     oscillator.stop();
-                }, 500);
-            } catch (e) {}
-        }
-
-        function showEmergencyScreenAlert(order) {
-            // Remove existing alert if any
-            const existingAlert = document.querySelector('.emergency-alert');
-            if (existingAlert) existingAlert.remove();
-            
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'emergency-alert';
-            alertDiv.innerHTML = `
-                <div style="font-size: 40px; margin-bottom: 20px;">🚨</div>
-                <div>EMERGENCY - NEW ORDER!</div>
-                <div style="font-size: 18px; margin-top: 15px; font-weight: normal;">
-                    Order #${order.id}<br>
-                    From: ${order.staff}<br>
-                    Items: ${order.items.length}<br>
-                    Required: ${order.time}
-                </div>
-                <br>
-                <button onclick="this.parentElement.remove()" 
-                        style="background: white; color: #ff4444; border: none; 
-                               padding: 15px 30px; border-radius: 10px; font-weight: bold;
-                               font-size: 18px; cursor: pointer; margin-top: 10px;">
-                    ✅ OK, I'M COOKING!
-                </button>
-            `;
-            
-            document.body.appendChild(alertDiv);
-            
-            // Auto remove after 45 seconds
-            setTimeout(() => {
-                if (alertDiv.parentElement) {
-                    alertDiv.remove();
-                }
-            }, 45000);
-        }
-
-        function flashScreen() {
-            const flashDiv = document.createElement('div');
-            flashDiv.className = 'screen-flash';
-            document.body.appendChild(flashDiv);
-            
-            setTimeout(() => {
-                if (flashDiv.parentElement) {
-                    flashDiv.remove();
-                }
-            }, 1000);
-        }
-
-        function flashOrdersTab() {
-            const ordersTab = document.querySelector('[onclick="showTab(\'orders\')"]');
-            if (!ordersTab) return;
-            
-            const originalText = ordersTab.innerHTML;
-            const originalColor = ordersTab.style.background;
-            
-            let count = 0;
-            const flashInterval = setInterval(() => {
-                ordersTab.style.background = count % 2 === 0 ? '#ff4444' : '#8B4513';
-                ordersTab.style.color = 'white';
-                ordersTab.innerHTML = count % 2 === 0 ? '📝 🔥 NEW ORDER!' : originalText;
-                count++;
-                
-                if (count >= 10) {
-                    clearInterval(flashInterval);
-                    ordersTab.style.background = originalColor;
-                    ordersTab.style.color = '';
-                    ordersTab.innerHTML = originalText;
-                }
-            }, 500);
-        }
-
-        // ==================== TEST FUNCTIONS ====================
-        function testChefAlertSystem() {
-            const testOrder = {
-                id: 'TEST-' + Date.now(),
-                staff: 'Test Staff',
-                items: [{name: 'Black Forest Cake', quantity: 2}, {name: 'Croissant', quantity: 4}],
-                time: 'URGENT - ASAP'
-            };
-            
-            if (currentUser && currentUser.role === 'chef') {
-                sendEmergencyChefAlert(testOrder);
-                showNotification('Testing chef emergency alert system...', 'info');
-            } else {
-                showNotification('Please login as chef to test alerts', 'warning');
+                }, 300);
+            } catch (error) {
+                console.log('Sound play failed:', error);
             }
         }
 
-        function testSound() {
-            playEmergencySound();
-            showNotification('🔊 Testing emergency sound system...', 'info');
-        }
-
         // ==================== NOTIFICATION SYSTEM ====================
-        function showNotification(message, type = 'info', duration = 3000) {
+        function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
             notification.className = 'notification';
             notification.style.background = 
                 type === 'success' ? '#10B981' :
                 type === 'error' ? '#EF4444' :
                 type === 'warning' ? '#F59E0B' : '#3B82F6';
-            notification.innerHTML = message;
+            notification.textContent = message;
             
             document.body.appendChild(notification);
             
@@ -1143,7 +1063,7 @@
                 if (notification.parentElement) {
                     notification.remove();
                 }
-            }, duration);
+            }, 3000);
         }
 
         // ==================== ORDER ACTIONS ====================
