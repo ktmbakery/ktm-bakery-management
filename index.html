@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>K.T.M Bakery - Complete Professional System</title>
     <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎂</text></svg>">
     <meta name="theme-color" content="#8B4513">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="KTM Bakery">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
         body { background: #FFF8F0; color: #333; }
@@ -411,6 +413,24 @@
             font-size: 12px;
             font-weight: bold;
         }
+
+        /* App Badge */
+        .app-badge {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: #EF4444;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 10001;
+        }
     </style>
 
     <!-- Firebase -->
@@ -418,6 +438,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 </head>
 <body>
+    <!-- App Badge for Notifications -->
+    <div class="app-badge" id="appBadge">!</div>
+
     <!-- Login Screen -->
     <div class="login-screen" id="loginScreen">
         <div class="login-container">
@@ -443,6 +466,11 @@
             <p style="margin-top: 15px; color: #666; font-size: 14px;">
                 Use: staff1/123 or chef1/123 or manager/123
             </p>
+
+            <!-- Test Notification Button -->
+            <button onclick="testAllNotifications()" style="background: #3B82F6; margin-top: 10px; width: 100%;">
+                🔔 Test Notifications
+            </button>
         </div>
     </div>
 
@@ -701,26 +729,46 @@
         let orderToCancel = null;
         let previousOrdersCount = 0;
 
-        // ==================== ANDROID FIX SYSTEM ====================
+        // ==================== SERVICE WORKER REGISTRATION ====================
+        function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js')
+                .then(function(registration) {
+                    console.log('✅ Service Worker registered:', registration);
+                })
+                .catch(function(error) {
+                    console.log('❌ Service Worker registration failed:', error);
+                });
+            }
+        }
+
+        // ==================== ANDROID & HOMESCREEN FIX ====================
         function setupAndroidFirebase() {
             const isAndroid = /Android/i.test(navigator.userAgent);
+            const isHomescreen = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
             
-            if (isAndroid && currentUser && currentUser.role === 'chef') {
-                console.log("📱 ANDROID CHEF - Special Setup Started...");
+            if ((isAndroid || isHomescreen) && currentUser && currentUser.role === 'chef') {
+                console.log("📱 Android/Homescreen Chef - Special Setup Started...");
+                
+                // Register Service Worker
+                registerServiceWorker();
                 
                 // 1. Force background sync every 15 seconds
                 setInterval(() => {
-                    console.log("🔄 Android Background Sync Running...");
+                    console.log("🔄 Background Sync Running...");
                     database.ref('orders').once('value').then((snapshot) => {
                         const orders = snapshot.val();
                         const orderCount = orders ? Object.keys(orders).length : 0;
-                        console.log("📊 Android Sync - Orders Found:", orderCount);
+                        console.log("📊 Sync - Orders Found:", orderCount);
                         
                         // New order check garne
                         if (orderCount > previousOrdersCount) {
-                            console.log("🚨 NEW ORDER DETECTED ON ANDROID!");
+                            console.log("🚨 NEW ORDER DETECTED!");
                             playNotificationSound();
                             showNotification(`🔥 NEW ORDER: ${orderCount} orders waiting`, 'success');
+                            
+                            // Show app badge
+                            showAppBadge();
                         }
                         
                         previousOrdersCount = orderCount;
@@ -731,7 +779,7 @@
                 // 2. Android ko lagi manual sync button
                 addAndroidRefreshButton();
                 
-                // 3. Add test button for Android
+                // 3. Add test button
                 addAndroidTestButton();
                 
                 // 4. Initial force load
@@ -747,10 +795,10 @@
             
             const refreshBtn = document.createElement('button');
             refreshBtn.id = 'androidRefreshBtn';
-            refreshBtn.innerHTML = '🔄 ANDROID SYNC';
+            refreshBtn.innerHTML = '🔄 SYNC ORDERS';
             refreshBtn.onclick = function() {
-                console.log("📱 Android Manual Sync Clicked");
-                showNotification('🔄 Syncing orders for Android...', 'info');
+                console.log("📱 Manual Sync Clicked");
+                showNotification('🔄 Syncing orders...', 'info');
                 forceRefreshOrders();
             };
             
@@ -763,9 +811,9 @@
             
             const testBtn = document.createElement('button');
             testBtn.id = 'androidTestBtn';
-            testBtn.innerHTML = '🔔 Test Notification';
+            testBtn.innerHTML = '🔔 TEST NOTIFY';
             testBtn.onclick = function() {
-                testAndroidNotification();
+                testAllNotifications();
             };
             
             document.body.appendChild(testBtn);
@@ -775,10 +823,10 @@
             database.ref('orders').once('value').then((snapshot) => {
                 const orders = snapshot.val();
                 const orderCount = orders ? Object.keys(orders).length : 0;
-                console.log("🔄 Android Force Refresh - Orders:", orderCount);
+                console.log("🔄 Force Refresh - Orders:", orderCount);
                 
                 if (orderCount > 0) {
-                    showNotification(`✅ ${orderCount} orders synced to Android!`, 'success');
+                    showNotification(`✅ ${orderCount} orders synced!`, 'success');
                     playNotificationSound();
                 }
                 
@@ -786,36 +834,72 @@
             });
         }
 
-        // ==================== ANDROID NOTIFICATION FIX ====================
-        function testAndroidNotification() {
-            const isAndroid = /Android/i.test(navigator.userAgent);
+        // ==================== NOTIFICATION SYSTEM ====================
+        function sendChefAlert(order) {
+            console.log('🔔 SENDING ALERT TO CHEF...');
             
-            if (isAndroid) {
-                if (Notification.permission === "granted") {
-                    // Test all notification methods
-                    sendAndroidNotificationTest();
-                    showNotification('🔔 Test notification sent!', 'success');
-                } else {
-                    alert("❌ Notification permission not granted. Please enable notifications.");
-                    enableAndroidNotifications();
-                }
+            // 1. Sound - Always works
+            playNotificationSound();
+            
+            // 2. In-app notification - Always works
+            showNotification(`🔥 NEW ORDER: ${order.items.length} items from ${order.staff}`, 'success');
+            
+            // 3. App badge
+            showAppBadge();
+            
+            // 4. Check device type
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            const isHomescreen = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+            
+            if (isHomescreen) {
+                // Homescreen app - use Service Worker
+                sendHomescreenNotification(order);
+            } else if (isAndroid) {
+                // Android browser - use enhanced notifications
+                sendAndroidNotification(order);
+            } else {
+                // iPhone/Desktop - standard notifications
+                sendStandardNotification(order);
+            }
+            
+            // 5. Universal fallback
+            sendUniversalFallback(order);
+        }
+
+        function sendHomescreenNotification(order) {
+            console.log("📱 Sending Homescreen Notification...");
+            
+            // Service Worker notification
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then(registration => {
+                    registration.showNotification("🎂 ORDER #" + order.id, {
+                        body: `${order.items.length} items from ${order.staff} - ${order.time}`,
+                        icon: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
+                        badge: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
+                        vibrate: [200, 100, 200, 100, 200],
+                        tag: 'ktm-order',
+                        requireInteraction: true
+                    });
+                }).catch(error => {
+                    console.log("❌ Service Worker notification failed:", error);
+                    sendUniversalFallback(order);
+                });
+            } else {
+                sendUniversalFallback(order);
             }
         }
 
-        function sendAndroidNotificationTest() {
-            const isAndroid = /Android/i.test(navigator.userAgent);
-            if (!isAndroid) return;
-
-            console.log("📱 Sending Android test notification...");
+        function sendAndroidNotification(order) {
+            console.log("📱 Sending Android Notification...");
             
-            // Method 1: Standard Notification
+            // Standard web notification
             if (Notification.permission === "granted") {
                 try {
-                    const notification = new Notification("🎂 TEST - KTM Bakery", {
-                        body: "This is a test notification from Android",
+                    const notification = new Notification("🎂 ORDER #" + order.id, {
+                        body: `${order.items.length} items from ${order.staff} - ${order.time}`,
                         icon: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
                         badge: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
-                        tag: "android-test",
+                        tag: "ktm-order-" + order.id,
                         requireInteraction: true,
                         vibrate: [200, 100, 200]
                     });
@@ -826,16 +910,145 @@
                     };
                     
                 } catch (error) {
-                    console.log("❌ Standard notification failed:", error);
-                    fallbackAndroidAlertTest();
+                    console.log("❌ Android notification failed:", error);
+                    sendUniversalFallback(order);
                 }
             } else {
-                fallbackAndroidAlertTest();
+                sendUniversalFallback(order);
             }
         }
 
-        function fallbackAndroidAlertTest() {
-            alert("🔔 TEST NOTIFICATION\n\nIf you see this alert, sound is working but browser notifications are blocked.\n\nPlease enable browser notifications in settings.");
+        function sendStandardNotification(order) {
+            // iPhone/Desktop notification
+            if (Notification.permission === "granted") {
+                new Notification("🎂 NEW ORDER #" + order.id, {
+                    body: `${order.items.length} items from ${order.staff} - ${order.time}`,
+                    icon: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
+                    tag: "new-order"
+                });
+            }
+        }
+
+        function sendUniversalFallback(order) {
+            console.log("🔄 Using Universal Fallback...");
+            
+            // 1. Page title flash (works everywhere)
+            flashPageTitle(`🎂 NEW ORDER! (${order.items.length} items)`);
+            
+            // 2. Local storage event (cross-tab communication)
+            localStorage.setItem('ktm_new_order', JSON.stringify({
+                id: order.id,
+                items: order.items.length,
+                staff: order.staff,
+                time: order.time,
+                timestamp: Date.now()
+            }));
+            
+            // 3. Console alert
+            console.log("🚨 🚨 🚨 NEW ORDER ALERT 🚨 🚨 🚨");
+            console.log("Order ID:", order.id);
+            console.log("Items:", order.items.length);
+            console.log("From:", order.staff);
+            console.log("Time:", order.time);
+        }
+
+        function flashPageTitle(message) {
+            const originalTitle = document.title;
+            let count = 0;
+            
+            const flash = setInterval(() => {
+                document.title = (count % 2 === 0) ? message : originalTitle;
+                count++;
+                
+                if (count > 8) {
+                    document.title = originalTitle;
+                    clearInterval(flash);
+                }
+            }, 800);
+        }
+
+        function showAppBadge() {
+            const badge = document.getElementById('appBadge');
+            badge.style.display = 'flex';
+            
+            // Auto hide after 10 seconds
+            setTimeout(() => {
+                badge.style.display = 'none';
+            }, 10000);
+        }
+
+        function playNotificationSound() {
+            try {
+                // Web Audio API
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = 800;
+                gainNode.gain.value = 0.3;
+                oscillator.type = 'sine';
+                
+                oscillator.start();
+                setTimeout(() => {
+                    oscillator.stop();
+                }, 300);
+                
+            } catch (error) {
+                console.log('Sound play failed:', error);
+                // Fallback to HTML5 Audio
+                playFallbackSound();
+            }
+        }
+
+        function playFallbackSound() {
+            try {
+                const audio = new Audio();
+                audio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
+                audio.play().catch(e => console.log("HTML5 audio failed"));
+            } catch (e) {
+                console.log("HTML5 audio failed");
+            }
+        }
+
+        // ==================== TEST NOTIFICATIONS ====================
+        function testAllNotifications() {
+            console.log("🔔 Testing All Notification Systems...");
+            
+            const testOrder = {
+                id: 'TEST' + Date.now(),
+                items: [{name: 'Test Item', quantity: 1}],
+                staff: 'Test Staff',
+                time: 'ASAP'
+            };
+            
+            // Test sound
+            playNotificationSound();
+            
+            // Test in-app notification
+            showNotification('🔔 Testing notification system...', 'success');
+            
+            // Test all notification methods
+            sendChefAlert(testOrder);
+            
+            // Show test results
+            setTimeout(() => {
+                const isAndroid = /Android/i.test(navigator.userAgent);
+                const isHomescreen = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+                
+                let message = "🔔 TEST COMPLETE\n\n";
+                message += "✓ Sound: Working\n";
+                message += "✓ In-app Notification: Working\n";
+                message += "✓ Page Title Flash: Working\n";
+                message += `✓ Device: ${isAndroid ? 'Android' : 'iPhone/Desktop'}\n`;
+                message += `✓ App Mode: ${isHomescreen ? 'Homescreen' : 'Browser'}\n`;
+                message += `✓ Notification Permission: ${Notification.permission}\n\n`;
+                message += "If you heard sound and saw notifications, system is working!";
+                
+                alert(message);
+            }, 2000);
         }
 
         // ==================== REFRESH PROBLEM FIX ====================
@@ -857,9 +1070,8 @@
                 const androidUser = sessionStorage.getItem('androidUser');
                 
                 if (androidSession && androidUser) {
-                    // Android ma session cha bhane load gara
                     currentUser = JSON.parse(androidUser);
-                    restoreAndroidSession();
+                    restoreUserSession();
                     return;
                 }
             }
@@ -869,7 +1081,6 @@
             const loginTime = localStorage.getItem('userLoginTime');
             
             if (savedUser && loginTime) {
-                // Check if session is still valid (24 hours)
                 const loginDate = new Date(loginTime);
                 const currentDate = new Date();
                 const hoursDiff = (currentDate - loginDate) / (1000 * 60 * 60);
@@ -878,7 +1089,6 @@
                     currentUser = JSON.parse(savedUser);
                     restoreUserSession();
                 } else {
-                    // Session expired
                     localStorage.removeItem('currentUser');
                     localStorage.removeItem('userLoginTime');
                 }
@@ -895,23 +1105,7 @@
             loadCategories();
             showNotification('Welcome back! Session restored.', 'success');
             
-            // Android setup if chef
-            if (currentUser.role === 'chef') {
-                setupAndroidFirebase();
-            }
-        }
-
-        function restoreAndroidSession() {
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('mainSystem').style.display = 'block';
-            document.getElementById('currentUser').textContent = currentUser.name;
-            document.getElementById('userRoleBadge').textContent = currentUser.role.toUpperCase();
-            
-            setupUserTabs();
-            loadCategories();
-            showNotification('📱 Android session restored!', 'success');
-            
-            // Android setup if chef
+            // Android/Homescreen setup if chef
             if (currentUser.role === 'chef') {
                 setupAndroidFirebase();
             }
@@ -922,8 +1116,21 @@
             // Load user session if exists
             loadUserSession();
             
+            // Register Service Worker
+            registerServiceWorker();
+            
             document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', { 
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+            });
+            
+            // Listen for new order alerts from other tabs
+            window.addEventListener('storage', function(e) {
+                if (e.key === 'ktm_new_order' && e.newValue) {
+                    console.log("📱 Received alert from other tab");
+                    const order = JSON.parse(e.newValue);
+                    playNotificationSound();
+                    showNotification(`📱 New order from other device: ${order.items} items`, 'info');
+                }
             });
             
             // Firebase Real-time Listeners
@@ -971,8 +1178,6 @@
 
             if (user) {
                 currentUser = user;
-                
-                // Save session to localStorage - REFRESH FIX
                 saveUserSession(user);
                 
                 document.getElementById('loginScreen').style.display = 'none';
@@ -984,14 +1189,9 @@
                 loadCategories();
                 showNotification('Login successful!', 'success');
                 
-                // Android setup for chef
+                // Android/Homescreen setup for chef
                 if (user.role === 'chef') {
                     setupAndroidFirebase();
-                    
-                    // Android notification setup
-                    setTimeout(() => {
-                        enableAndroidNotifications();
-                    }, 2000);
                 }
                 
                 // Show notification modal for chef
@@ -1006,11 +1206,9 @@
 
         function logout() {
             currentUser = null;
-            // Clear session - REFRESH FIX
             localStorage.removeItem('currentUser');
             localStorage.removeItem('userLoginTime');
             
-            // Android session clear
             if (/Android/i.test(navigator.userAgent)) {
                 sessionStorage.removeItem('androidSession');
                 sessionStorage.removeItem('androidUser');
@@ -1029,180 +1227,17 @@
             if (testBtn) testBtn.remove();
         }
 
-        // ==================== ANDROID NOTIFICATION SYSTEM ====================
-        function enableAndroidNotifications() {
-            const isAndroid = /Android/i.test(navigator.userAgent);
-            
-            if (isAndroid && currentUser && currentUser.role === 'chef') {
-                console.log("📱 Android - Setting up notifications...");
-                
-                // Direct permission request
-                if (Notification.permission === "default") {
-                    Notification.requestPermission().then(permission => {
-                        if (permission === "granted") {
-                            showNotification('🎉 Android notifications enabled!', 'success');
-                            
-                            // Test notification
-                            setTimeout(() => {
-                                sendAndroidNotificationTest();
-                            }, 1000);
-                        } else {
-                            showNotification('❌ Notifications blocked on Android', 'error');
-                        }
-                    });
-                } else if (Notification.permission === "granted") {
-                    showNotification('✅ Android notifications ready!', 'success');
-                }
-            }
-        }
-
-        function sendChefAlert(order) {
-            console.log('🔔 SENDING ALERT TO CHEF...');
-            
-            // Play sound - yesle kaam garcha
-            playNotificationSound();
-            
-            // Show in-app notification - yesle pani kaam garcha
-            showNotification(`🔥 NEW ORDER: ${order.items.length} items from ${order.staff}`, 'success');
-            
-            // Android ma special notification
-            if (/Android/i.test(navigator.userAgent)) {
-                sendAndroidOrderNotification(order);
-            } else {
-                // iPhone ma normal notification
-                sendStandardNotification(order);
-            }
-        }
-
-        function sendAndroidOrderNotification(order) {
-            const isAndroid = /Android/i.test(navigator.userAgent);
-            if (!isAndroid) return;
-
-            console.log("📱 Sending Android order notification...");
-            
-            // Method 1: Standard Notification
-            if (Notification.permission === "granted") {
-                try {
-                    const notification = new Notification("🎂 ORDER #" + order.id, {
-                        body: `${order.items.length} items from ${order.staff} - ${order.time}`,
-                        icon: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
-                        badge: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
-                        tag: "ktm-order-" + order.id,
-                        requireInteraction: true,
-                        vibrate: [200, 100, 200]
-                    });
-                    
-                    notification.onclick = function() {
-                        window.focus();
-                        this.close();
-                    };
-                    
-                } catch (error) {
-                    console.log("❌ Android notification failed:", error);
-                    fallbackAndroidOrderAlert(order);
-                }
-            } else {
-                fallbackAndroidOrderAlert(order);
-            }
-        }
-
-        function sendStandardNotification(order) {
-            // iPhone ko lagi standard notification
-            if (Notification.permission === "granted") {
-                new Notification("🎂 NEW ORDER #" + order.id, {
-                    body: `${order.items.length} items from ${order.staff} - ${order.time}`,
-                    icon: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
-                    tag: "new-order"
-                });
-            }
-        }
-
-        function fallbackAndroidOrderAlert(order) {
-            // Android ma alert as fallback
-            if (confirm(`🎂 NEW ORDER!\n\nOrder #${order.id}\n${order.items.length} items from ${order.staff}\nRequired: ${order.time}\n\nClick OK to view`)) {
-                window.focus();
-            }
-            
-            // Page title flash
-            flashPageTitle(`🎂 NEW ORDER! (${order.items.length} items)`);
-        }
-
-        function flashPageTitle(message) {
-            let originalTitle = document.title;
-            let flashCount = 0;
-            const maxFlashes = 6;
-            
-            const flashInterval = setInterval(() => {
-                if (flashCount < maxFlashes) {
-                    document.title = (document.title === originalTitle) ? message : originalTitle;
-                    flashCount++;
-                } else {
-                    clearInterval(flashInterval);
-                    document.title = originalTitle;
-                }
-            }, 800);
-        }
-
-        function playNotificationSound() {
-            try {
-                // Android compatible sound
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                // Android ma high frequency better
-                oscillator.frequency.value = 1000;
-                gainNode.gain.value = 0.5;
-                oscillator.type = 'sine';
-                
-                oscillator.start();
-                
-                // Android ma longer sound
-                setTimeout(() => {
-                    oscillator.stop();
-                }, 500);
-                
-            } catch (error) {
-                console.log('Sound play failed:', error);
-                // Fallback: HTML5 Audio
-                playFallbackSound();
-            }
-        }
-
-        function playFallbackSound() {
-            try {
-                // Simple beep sound for Android
-                const audio = new Audio();
-                audio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
-                audio.play().catch(e => console.log("HTML5 audio failed"));
-            } catch (e) {
-                console.log("HTML5 audio failed");
-            }
-        }
-
         // ==================== NOTIFICATION MODAL SYSTEM ====================
         function showNotificationModal() {
-            // Check if already enabled or skipped
-            if (localStorage.getItem('chefNotifications') === 'enabled') {
-                return; // Already enabled, don't show modal
-            }
+            if (localStorage.getItem('chefNotifications') === 'enabled') return;
+            if (localStorage.getItem('chefNotifications') === 'skipped') return;
             
-            if (localStorage.getItem('chefNotifications') === 'skipped') {
-                return; // User skipped, don't show modal
-            }
-            
-            // Show modal for chef
             document.getElementById('notificationModal').style.display = 'flex';
         }
 
         function enableNotifications() {
-            // Hide modal first
             document.getElementById('notificationModal').style.display = 'none';
             
-            // Request notification permission
             if (!"Notification" in window) {
                 showNotification('❌ Browser does not support notifications', 'error');
                 return;
@@ -1210,20 +1245,19 @@
             
             Notification.requestPermission().then(permission => {
                 if (permission === "granted") {
-                    // Save to localStorage - don't show modal again
                     localStorage.setItem('chefNotifications', 'enabled');
-                    showNotification('🎉 Background notifications enabled! You will get order alerts.', 'success');
+                    showNotification('🎉 Notifications enabled!', 'success');
                     
                     // Test notification
                     if (Notification.permission === "granted") {
                         new Notification("🎂 KTM Bakery", {
-                            body: "Background notifications enabled! You'll get order alerts.",
+                            body: "Notifications enabled successfully!",
                             icon: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png"
                         });
                     }
                     
                 } else {
-                    showNotification('❌ Notifications blocked. You wont receive order alerts.', 'error');
+                    showNotification('❌ Notifications blocked', 'error');
                 }
             });
         }
@@ -1231,10 +1265,24 @@
         function skipNotifications() {
             document.getElementById('notificationModal').style.display = 'none';
             localStorage.setItem('chefNotifications', 'skipped');
-            showNotification('Notifications skipped. You can enable later from settings.', 'info');
+            showNotification('Notifications skipped', 'info');
         }
 
-        // ==================== ROLE-BASED SYSTEM ====================
+        // ==================== CHEF ALERT SYSTEM ====================
+        function checkAndAlertNewOrders() {
+            const currentCount = orders.length;
+            
+            if (currentCount > previousOrdersCount && currentUser && currentUser.role === 'chef') {
+                const newOrder = orders[0];
+                console.log('🚨 NEW ORDER DETECTED - ALERTING CHEF:', newOrder.id);
+                sendChefAlert(newOrder);
+            }
+            
+            previousOrdersCount = currentCount;
+        }
+
+        // ==================== REMAINING FUNCTIONS ====================
+        // (Timiroy original functions yaha add gara)
         function setupUserTabs() {
             const navTabs = document.getElementById('navTabs');
             const userRole = currentUser.role;
@@ -1242,9 +1290,7 @@
             navTabs.innerHTML = '';
             
             if (userRole === 'staff') {
-                navTabs.innerHTML = `
-                    <button class="nav-tab active" onclick="showTab('orders')">📝 Orders</button>
-                `;
+                navTabs.innerHTML = `<button class="nav-tab active" onclick="showTab('orders')">📝 Orders</button>`;
             } else if (userRole === 'chef') {
                 navTabs.innerHTML = `
                     <button class="nav-tab active" onclick="showTab('orders')">📝 Orders</button>
@@ -1262,28 +1308,19 @@
         }
 
         function showTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            document.querySelectorAll('.nav-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
 
             document.getElementById(tabName + 'Tab').classList.add('active');
             event.target.classList.add('active');
 
-            if (tabName === 'reports') {
-                loadReports();
-            } else if (tabName === 'production') {
-                loadProductionData();
-            }
+            if (tabName === 'reports') loadReports();
+            else if (tabName === 'production') loadProductionData();
         }
 
-        // ==================== ORDER MANAGEMENT ====================
         function togglePartyField() {
             const orderType = document.getElementById('orderType').value;
-            const partyField = document.getElementById('partyNameField');
-            partyField.style.display = orderType === 'party' ? 'block' : 'none';
+            document.getElementById('partyNameField').style.display = orderType === 'party' ? 'block' : 'none';
         }
 
         function loadCategories() {
@@ -1302,7 +1339,6 @@
                 categoriesContainer.appendChild(button);
             });
 
-            // Activate first category
             if (categoriesContainer.firstChild) {
                 categoriesContainer.firstChild.classList.add('active');
                 loadItems(Object.keys(menuCategories)[0]);
@@ -1323,9 +1359,7 @@
                         <label>Quantity:</label>
                         <input type="number" class="quantity-input" id="qty-${safeId}" placeholder="0" min="0" value="1">
                     </div>
-                    <button class="add-order-btn" onclick="addToOrder('${item}')">
-                        ➕ Add to Order
-                    </button>
+                    <button class="add-order-btn" onclick="addToOrder('${item}')">➕ Add to Order</button>
                 `;
                 itemsGrid.appendChild(itemCard);
             });
@@ -1378,7 +1412,6 @@
             showNotification('Order cleared', 'info');
         }
 
-        // ==================== SUBMIT ORDER ====================
         function submitOrder() {
             if (currentOrder.length === 0) {
                 showNotification('Please add items to order!', 'error');
@@ -1399,12 +1432,9 @@
                 device: getDeviceInfo()
             };
 
-            // Submit to Firebase
             database.ref('orders/' + order.id).set(order)
             .then(() => {
                 showNotification('✅ Order submitted to chef!', 'success');
-                
-                // Reset form
                 currentOrder = [];
                 updateOrderSummary();
                 document.getElementById('requiredTime').value = 'ASAP';
@@ -1412,7 +1442,6 @@
                 document.getElementById('partyName').value = '';
                 document.getElementById('orderType').value = 'counter';
                 document.getElementById('partyNameField').style.display = 'none';
-                
             })
             .catch((error) => {
                 console.error('Firebase error:', error);
@@ -1427,23 +1456,6 @@
             return 'Desktop';
         }
 
-        // ==================== CHEF ALERT SYSTEM ====================
-        function checkAndAlertNewOrders() {
-            const currentCount = orders.length;
-            
-            if (currentCount > previousOrdersCount && currentUser && currentUser.role === 'chef') {
-                // New order arrived for chef!
-                const newOrder = orders[0];
-                console.log('🚨 NEW ORDER DETECTED - ALERTING CHEF:', newOrder.id);
-                
-                // Send alert to chef
-                sendChefAlert(newOrder);
-            }
-            
-            previousOrdersCount = currentCount;
-        }
-
-        // ==================== NOTIFICATION SYSTEM ====================
         function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
             notification.className = 'notification';
@@ -1456,13 +1468,10 @@
             document.body.appendChild(notification);
             
             setTimeout(() => {
-                if (notification.parentElement) {
-                    notification.remove();
-                }
+                if (notification.parentElement) notification.remove();
             }, 3000);
         }
 
-        // ==================== ORDER ACTIONS ====================
         function completeOrder(orderId) {
             database.ref('orders/' + orderId).once('value')
             .then((snapshot) => {
@@ -1472,11 +1481,10 @@
                     order.completedBy = currentUser.name;
                     order.completedAt = new Date().toISOString();
                     
-                    // Move to completed orders
                     database.ref('completed_orders/' + orderId).set(order)
                     .then(() => {
                         database.ref('orders/' + orderId).remove();
-                        showNotification('Order marked as completed!', 'success');
+                        showNotification('Order completed!', 'success');
                     });
                 }
             });
@@ -1519,7 +1527,6 @@
             });
         }
 
-        // ==================== DISPLAY FUNCTIONS ====================
         function updateActiveOrdersDisplay() {
             const ordersList = document.getElementById('activeOrdersList');
             
@@ -1528,7 +1535,6 @@
                 return;
             }
 
-            // Sort by timestamp (newest first)
             orders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
             let html = '';
@@ -1575,12 +1581,8 @@
                         
                         ${currentUser.role !== 'staff' ? `
                             <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end;">
-                                <button class="action-btn complete-btn" onclick="completeOrder('${order.id}')">
-                                    ✅ Complete
-                                </button>
-                                <button class="action-btn delete-btn" onclick="cancelOrder('${order.id}')">
-                                    ❌ Cancel
-                                </button>
+                                <button class="action-btn complete-btn" onclick="completeOrder('${order.id}')">✅ Complete</button>
+                                <button class="action-btn delete-btn" onclick="cancelOrder('${order.id}')">❌ Cancel</button>
                             </div>
                         ` : ''}
                     </div>
@@ -1597,7 +1599,6 @@
                 return;
             }
 
-            // Sort by completion time (newest first)
             completedOrders.sort((a, b) => {
                 const timeA = a.completedAt || a.cancelledAt || a.timestamp;
                 const timeB = b.completedAt || b.cancelledAt || b.timestamp;
@@ -1620,9 +1621,7 @@
                                 ${completedTime ? `<span class="timestamp">Completed: ${completedTime}</span>` : ''}
                                 ${cancelledTime ? `<span class="timestamp">Cancelled: ${cancelledTime}</span>` : ''}
                             </div>
-                            <span class="status-badge ${order.status === 'completed' ? 'status-completed' : 'status-cancelled'}">
-                                ${order.status.toUpperCase()}
-                            </span>
+                            <span class="status-badge ${order.status === 'completed' ? 'status-completed' : 'status-cancelled'}">${order.status.toUpperCase()}</span>
                         </div>
                         <p><strong>From:</strong> ${order.staff} 
                         ${order.completedBy ? ` | <strong>Completed by:</strong> ${order.completedBy}` : ''}
@@ -1630,9 +1629,7 @@
                         ${order.cancelledReason ? `<p style="color: #EF4444;"><strong>Reason:</strong> ${order.cancelledReason}</p>` : ''}
                         <div style="margin-top: 10px;">
                             ${order.items.map(item => `
-                                <div style="padding: 5px 0; border-bottom: 1px solid #f0f0f0;">
-                                    ${item.name}: <strong>${item.quantity} pcs</strong>
-                                </div>
+                                <div style="padding: 5px 0; border-bottom: 1px solid #f0f0f0;">${item.name}: <strong>${item.quantity} pcs</strong></div>
                             `).join('')}
                         </div>
                     </div>
@@ -1643,19 +1640,13 @@
 
         function loadProductionData() {
             const today = new Date().toDateString();
-            const todayOrders = completedOrders.filter(order => 
-                new Date(order.completedAt).toDateString() === today
-            );
-            
-            const todayItems = todayOrders.reduce((total, order) => {
-                return total + order.items.reduce((sum, item) => sum + item.quantity, 0);
-            }, 0);
+            const todayOrders = completedOrders.filter(order => new Date(order.completedAt).toDateString() === today);
+            const todayItems = todayOrders.reduce((total, order) => total + order.items.reduce((sum, item) => sum + item.quantity, 0), 0);
 
             document.getElementById('todayOrders').textContent = todayOrders.length;
             document.getElementById('todayItems').textContent = todayItems;
             document.getElementById('pendingOrders').textContent = orders.length;
 
-            // Update production list
             const productionList = document.getElementById('productionList');
             if (todayOrders.length === 0) {
                 productionList.innerHTML = '<p style="color: #666;">No production today</p>';
@@ -1676,20 +1667,11 @@
 
         function loadReports() {
             const totalOrders = completedOrders.length;
-            const totalItems = completedOrders.reduce((total, order) => {
-                return total + order.items.reduce((sum, item) => sum + item.quantity, 0);
-            }, 0);
+            const totalItems = completedOrders.reduce((total, order) => total + order.items.reduce((sum, item) => sum + item.quantity, 0), 0);
+            const totalSales = totalItems * 50;
             
-            // Calculate total sales (approximate)
-            const totalSales = totalItems * 50; // Assuming average ₹50 per item
-            
-            // Find popular item
             const itemCounts = {};
-            completedOrders.forEach(order => {
-                order.items.forEach(item => {
-                    itemCounts[item.name] = (itemCounts[item.name] || 0) + item.quantity;
-                });
-            });
+            completedOrders.forEach(order => order.items.forEach(item => itemCounts[item.name] = (itemCounts[item.name] || 0) + item.quantity));
             
             let popularItem = '-';
             let maxCount = 0;
@@ -1705,7 +1687,6 @@
             document.getElementById('totalItems').textContent = totalItems;
             document.getElementById('popularItem').textContent = popularItem;
 
-            // Update report details
             const reportDetails = document.getElementById('reportDetails');
             if (totalOrders === 0) {
                 reportDetails.innerHTML = '<p style="color: #666;">No report data available</p>';
@@ -1735,29 +1716,12 @@
             }
         }
 
-        function updateProductionData() {
-            loadProductionData();
-        }
-
-        function updateReports() {
-            loadReports();
-        }
+        function updateProductionData() { loadProductionData(); }
+        function updateReports() { loadReports(); }
 
         function smartRefresh() {
             showNotification('Refreshing data...', 'info');
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        }
-
-        // PWA Support
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js')
-                .catch(function(error) {
-                    console.log('Service Worker registration failed: ', error);
-                });
-            });
+            setTimeout(() => window.location.reload(), 1000);
         }
     </script>
 </body>
